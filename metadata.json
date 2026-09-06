@@ -1,0 +1,6 @@
+{
+  "name": "CROWNMIND: Veylthyr Rising",
+  "description": "An indirect-control fantasy kingdom simulation where an AI sovereign bot guides autonomous heroes to defeat the Veylthyr Spire.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
