@@ -33,14 +33,17 @@ export default function Modal({
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         e.stopPropagation();
         onClose();
         return;
       }
       if (e.key === 'Tab' && dialogRef.current) {
-        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
+        const focusable = Array.from(
+          dialogRef.current.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => !el.hasAttribute('disabled') && el.getClientRects().length > 0);
         if (focusable.length === 0) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -57,6 +60,8 @@ export default function Modal({
   );
 
   useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
     if (open) {
       previouslyFocused.current = document.activeElement as HTMLElement;
       document.addEventListener('keydown', handleKeyDown, true);
@@ -65,14 +70,11 @@ export default function Modal({
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
       focusable?.[0]?.focus();
-    } else {
-      document.removeEventListener('keydown', handleKeyDown, true);
-      document.body.style.overflow = '';
-      previouslyFocused.current?.focus();
     }
     return () => {
       document.removeEventListener('keydown', handleKeyDown, true);
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocused.current?.isConnected) previouslyFocused.current.focus();
     };
   }, [open, handleKeyDown]);
 

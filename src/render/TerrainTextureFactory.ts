@@ -1,8 +1,21 @@
 import { textureFactory } from './TextureFactory';
 import {
-  createCanvas, fillRect, fillCircle, fillPolygon, drawDetailNoise, strokeLine, rgba,
-  drawGrassBlades, drawPebbles, drawWaterRipples, drawSandGrains, drawSnowSparkles,
-  drawLeafCluster, drawCorruptionVeins, drawSparkles, drawCracks,
+  createCanvas,
+  fillRect,
+  fillCircle,
+  fillPolygon,
+  drawDetailNoise,
+  strokeLine,
+  rgba,
+  drawGrassBlades,
+  drawPebbles,
+  drawWaterRipples,
+  drawSandGrains,
+  drawSnowSparkles,
+  drawLeafCluster,
+  drawCorruptionVeins,
+  drawSparkles,
+  drawCracks,
 } from './TexturePainter';
 import type { TerrainType, Biome } from '../types/world';
 
@@ -11,14 +24,14 @@ const DRAW_SIZE = 256;
 const TILE_SCALE = TILE_SIZE / DRAW_SIZE;
 
 const TERRAIN_BASE: Record<TerrainType, { r: number; g: number; b: number }> = {
-  grass: { r: 26, g: 42, b: 26 },
-  forest: { r: 15, g: 32, b: 16 },
-  stone: { r: 42, g: 42, b: 46 },
-  corruption: { r: 42, g: 26, b: 53 },
-  desert: { r: 58, g: 42, b: 16 },
-  snow: { r: 42, g: 42, b: 58 },
-  water: { r: 10, g: 26, b: 42 },
-  fertile: { r: 26, g: 58, b: 26 },
+  grass: { r: 49, g: 66, b: 50 },
+  forest: { r: 26, g: 47, b: 37 },
+  stone: { r: 75, g: 80, b: 78 },
+  corruption: { r: 55, g: 25, b: 43 },
+  desert: { r: 95, g: 78, b: 49 },
+  snow: { r: 87, g: 111, b: 125 },
+  water: { r: 21, g: 51, b: 65 },
+  fertile: { r: 49, g: 83, b: 48 },
 };
 
 const BIOME_TINT: Record<Biome, { r: number; g: number; b: number }> = {
@@ -27,7 +40,10 @@ const BIOME_TINT: Record<Biome, { r: number; g: number; b: number }> = {
   tundra: { r: -5, g: -5, b: 15 },
 };
 
-function tint(base: { r: number; g: number; b: number }, biome: Biome): { r: number; g: number; b: number } {
+function tint(
+  base: { r: number; g: number; b: number },
+  biome: Biome
+): { r: number; g: number; b: number } {
   const t = BIOME_TINT[biome];
   return {
     r: Math.max(0, Math.min(255, base.r + t.r)),
@@ -36,7 +52,14 @@ function tint(base: { r: number; g: number; b: number }, biome: Biome): { r: num
   };
 }
 
-function drawGlow(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string, intensity: number): void {
+function drawGlow(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  color: string,
+  intensity: number
+): void {
   const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
   grad.addColorStop(0, color);
   grad.addColorStop(1, 'rgba(0,0,0,0)');
@@ -53,7 +76,15 @@ function drawGrass(ctx: CanvasRenderingContext2D, biome: Biome): void {
   fillRect(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, rgba(c.r, c.g, c.b));
   drawDetailNoise(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, 200, rgba(c.r + 15, c.g + 20, c.b + 10, 0.5));
   drawGrassBlades(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, 120, rgba(c.r + 25, c.g + 35, c.b + 15, 0.7));
-  drawGrassBlades(ctx, 0, DRAW_SIZE * 0.3, DRAW_SIZE, DRAW_SIZE * 0.7, 80, rgba(c.r + 35, c.g + 45, c.b + 20, 0.5));
+  drawGrassBlades(
+    ctx,
+    0,
+    DRAW_SIZE * 0.3,
+    DRAW_SIZE,
+    DRAW_SIZE * 0.7,
+    80,
+    rgba(c.r + 35, c.g + 45, c.b + 20, 0.5)
+  );
   for (let i = 0; i < 8; i++) {
     const x = Math.random() * DRAW_SIZE;
     const y = Math.random() * DRAW_SIZE;
@@ -63,7 +94,13 @@ function drawGrass(ctx: CanvasRenderingContext2D, biome: Biome): void {
   for (let i = 0; i < 6; i++) {
     const fx = Math.random() * DRAW_SIZE;
     const fy = Math.random() * DRAW_SIZE;
-    fillCircle(ctx, fx, fy, 1.5, rgba(255, 200 + Math.random() * 55, 100 + Math.random() * 50, 0.4));
+    fillCircle(
+      ctx,
+      fx,
+      fy,
+      1.5,
+      rgba(255, 200 + Math.random() * 55, 100 + Math.random() * 50, 0.4)
+    );
   }
 }
 
@@ -72,17 +109,44 @@ function drawForest(ctx: CanvasRenderingContext2D, biome: Biome): void {
   fillRect(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, rgba(c.r, c.g, c.b));
   drawDetailNoise(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, 150, rgba(c.r + 10, c.g + 15, c.b + 5, 0.4));
   drawGrassBlades(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, 60, rgba(c.r + 20, c.g + 30, c.b + 10, 0.4));
-  for (let i = 0; i < 5; i++) {
-    const tx = 30 + Math.random() * (DRAW_SIZE - 60);
-    const ty = 30 + Math.random() * (DRAW_SIZE - 60);
+  for (let i = 0; i < 3; i++) {
+    const tx = 50 + Math.random() * (DRAW_SIZE - 100);
+    const ty = 55 + Math.random() * (DRAW_SIZE - 110);
     const trunkH = 20 + Math.random() * 15;
     fillRect(ctx, tx - 4, ty + 10, 8, trunkH, rgba(60, 40, 20, 0.85));
     fillRect(ctx, tx - 3, ty + 10, 2, trunkH, rgba(80, 55, 30, 0.6));
     fillRect(ctx, tx + 1, ty + 10, 2, trunkH, rgba(40, 25, 12, 0.7));
-    const canopyR = 25 + Math.random() * 15;
+    const canopyR = 48 + Math.random() * 22;
+    // A canopy silhouette survives normal world zoom; leaf speckles alone read as grass.
+    ctx.fillStyle = rgba(5, 16, 12, 0.5);
+    ctx.beginPath();
+    ctx.ellipse(tx + 10, ty + 20, canopyR * 0.95, canopyR * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+    fillCircle(ctx, tx, ty - 5, canopyR * 0.7, rgba(c.r + 3, c.g + 16, c.b + 2, 0.95));
+    fillCircle(
+      ctx,
+      tx - canopyR * 0.27,
+      ty - 15,
+      canopyR * 0.48,
+      rgba(c.r + 14, c.g + 29, c.b + 9, 0.9)
+    );
+    fillCircle(
+      ctx,
+      tx + canopyR * 0.27,
+      ty - 8,
+      canopyR * 0.43,
+      rgba(c.r + 8, c.g + 21, c.b + 5, 0.9)
+    );
     drawLeafCluster(ctx, tx, ty - 5, canopyR, rgba(c.r + 5, c.g + 30, c.b + 5, 0.8), 40);
     drawLeafCluster(ctx, tx - 10, ty, canopyR * 0.7, rgba(c.r + 15, c.g + 40, c.b + 10, 0.7), 30);
-    drawLeafCluster(ctx, tx + 10, ty + 5, canopyR * 0.7, rgba(c.r + 10, c.g + 35, c.b + 8, 0.7), 30);
+    drawLeafCluster(
+      ctx,
+      tx + 10,
+      ty + 5,
+      canopyR * 0.7,
+      rgba(c.r + 10, c.g + 35, c.b + 8, 0.7),
+      30
+    );
     drawLeafCluster(ctx, tx, ty - 15, canopyR * 0.5, rgba(c.r + 25, c.g + 50, c.b + 15, 0.6), 20);
   }
   // Fallen log
@@ -111,8 +175,24 @@ function drawStone(ctx: CanvasRenderingContext2D, biome: Biome): void {
     fillCircle(ctx, rx + 3, ry + 3, rs * 0.6, rgba(c.r - 10, c.g - 10, c.b - 8, 0.4));
     drawCracks(ctx, rx, ry, rs, 3, rgba(c.r - 20, c.g - 20, c.b - 15, 0.5));
   }
-  strokeLine(ctx, 0, DRAW_SIZE * 0.35, DRAW_SIZE, DRAW_SIZE * 0.32, rgba(c.r - 15, c.g - 15, c.b - 12, 0.4), 2);
-  strokeLine(ctx, 0, DRAW_SIZE * 0.65, DRAW_SIZE, DRAW_SIZE * 0.68, rgba(c.r - 15, c.g - 15, c.b - 12, 0.3), 1.5);
+  strokeLine(
+    ctx,
+    0,
+    DRAW_SIZE * 0.35,
+    DRAW_SIZE,
+    DRAW_SIZE * 0.32,
+    rgba(c.r - 15, c.g - 15, c.b - 12, 0.4),
+    2
+  );
+  strokeLine(
+    ctx,
+    0,
+    DRAW_SIZE * 0.65,
+    DRAW_SIZE,
+    DRAW_SIZE * 0.68,
+    rgba(c.r - 15, c.g - 15, c.b - 12, 0.3),
+    1.5
+  );
   // Moss patches
   for (let i = 0; i < 4; i++) {
     const mx = 20 + Math.random() * (DRAW_SIZE - 40);
@@ -138,9 +218,33 @@ function drawCorruption(ctx: CanvasRenderingContext2D, _biome: Biome): void {
   fillCircle(ctx, DRAW_SIZE / 2, DRAW_SIZE / 2, 12, rgba(180, 60, 220, 0.3));
   drawSparkles(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, 30, rgba(200, 80, 240, 0.6));
   // Dead tree silhouette
-  strokeLine(ctx, DRAW_SIZE * 0.7, DRAW_SIZE - 20, DRAW_SIZE * 0.7, DRAW_SIZE * 0.5, rgba(30, 15, 25, 0.5), 3);
-  strokeLine(ctx, DRAW_SIZE * 0.7, DRAW_SIZE * 0.6, DRAW_SIZE * 0.6, DRAW_SIZE * 0.5, rgba(30, 15, 25, 0.4), 2);
-  strokeLine(ctx, DRAW_SIZE * 0.7, DRAW_SIZE * 0.55, DRAW_SIZE * 0.8, DRAW_SIZE * 0.45, rgba(30, 15, 25, 0.4), 2);
+  strokeLine(
+    ctx,
+    DRAW_SIZE * 0.7,
+    DRAW_SIZE - 20,
+    DRAW_SIZE * 0.7,
+    DRAW_SIZE * 0.5,
+    rgba(30, 15, 25, 0.5),
+    3
+  );
+  strokeLine(
+    ctx,
+    DRAW_SIZE * 0.7,
+    DRAW_SIZE * 0.6,
+    DRAW_SIZE * 0.6,
+    DRAW_SIZE * 0.5,
+    rgba(30, 15, 25, 0.4),
+    2
+  );
+  strokeLine(
+    ctx,
+    DRAW_SIZE * 0.7,
+    DRAW_SIZE * 0.55,
+    DRAW_SIZE * 0.8,
+    DRAW_SIZE * 0.45,
+    rgba(30, 15, 25, 0.4),
+    2
+  );
 }
 
 function drawDesert(ctx: CanvasRenderingContext2D, biome: Biome): void {
@@ -150,8 +254,24 @@ function drawDesert(ctx: CanvasRenderingContext2D, biome: Biome): void {
   drawSandGrains(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, 200, rgba(c.r + 25, c.g + 18, c.b + 5, 0.5));
   for (let i = 0; i < 5; i++) {
     const y = 20 + i * 45 + Math.random() * 20;
-    strokeLine(ctx, 10, y, DRAW_SIZE - 10, y + (Math.random() - 0.5) * 15, rgba(c.r + 20, c.g + 15, c.b + 5, 0.3), 2);
-    strokeLine(ctx, 15, y + 8, DRAW_SIZE - 15, y + 8 + (Math.random() - 0.5) * 10, rgba(c.r + 30, c.g + 22, c.b + 8, 0.2), 1.5);
+    strokeLine(
+      ctx,
+      10,
+      y,
+      DRAW_SIZE - 10,
+      y + (Math.random() - 0.5) * 15,
+      rgba(c.r + 20, c.g + 15, c.b + 5, 0.3),
+      2
+    );
+    strokeLine(
+      ctx,
+      15,
+      y + 8,
+      DRAW_SIZE - 15,
+      y + 8 + (Math.random() - 0.5) * 10,
+      rgba(c.r + 30, c.g + 22, c.b + 8, 0.2),
+      1.5
+    );
   }
   for (let i = 0; i < 3; i++) {
     const x = 30 + Math.random() * (DRAW_SIZE - 60);
@@ -189,8 +309,24 @@ function drawSnow(ctx: CanvasRenderingContext2D, biome: Biome): void {
   fillCircle(ctx, DRAW_SIZE * 0.3, DRAW_SIZE * 0.7, 15, rgba(180, 200, 230, 0.3));
   fillCircle(ctx, DRAW_SIZE * 0.3, DRAW_SIZE * 0.7, 10, rgba(200, 220, 240, 0.2));
   // Icicles on rock
-  fillPolygon(ctx, [[DRAW_SIZE * 0.7, 30], [DRAW_SIZE * 0.7 + 4, 45], [DRAW_SIZE * 0.7 + 8, 30]], rgba(200, 220, 240, 0.4));
-  fillPolygon(ctx, [[DRAW_SIZE * 0.7 + 10, 30], [DRAW_SIZE * 0.7 + 13, 40], [DRAW_SIZE * 0.7 + 16, 30]], rgba(200, 220, 240, 0.3));
+  fillPolygon(
+    ctx,
+    [
+      [DRAW_SIZE * 0.7, 30],
+      [DRAW_SIZE * 0.7 + 4, 45],
+      [DRAW_SIZE * 0.7 + 8, 30],
+    ],
+    rgba(200, 220, 240, 0.4)
+  );
+  fillPolygon(
+    ctx,
+    [
+      [DRAW_SIZE * 0.7 + 10, 30],
+      [DRAW_SIZE * 0.7 + 13, 40],
+      [DRAW_SIZE * 0.7 + 16, 30],
+    ],
+    rgba(200, 220, 240, 0.3)
+  );
 }
 
 function drawWater(ctx: CanvasRenderingContext2D, biome: Biome): void {
@@ -202,10 +338,26 @@ function drawWater(ctx: CanvasRenderingContext2D, biome: Biome): void {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, DRAW_SIZE, DRAW_SIZE);
   drawWaterRipples(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, 40, rgba(c.r + 25, c.g + 40, c.b + 55, 0.4));
-  drawWaterRipples(ctx, 0, DRAW_SIZE * 0.3, DRAW_SIZE, DRAW_SIZE * 0.7, 30, rgba(c.r + 15, c.g + 30, c.b + 45, 0.3));
+  drawWaterRipples(
+    ctx,
+    0,
+    DRAW_SIZE * 0.3,
+    DRAW_SIZE,
+    DRAW_SIZE * 0.7,
+    30,
+    rgba(c.r + 15, c.g + 30, c.b + 45, 0.3)
+  );
   for (let i = 0; i < 5; i++) {
     const y = 20 + i * 50;
-    strokeLine(ctx, 10, y, DRAW_SIZE - 10, y + (Math.random() - 0.5) * 8, rgba(c.r + 30, c.g + 45, c.b + 60, 0.25), 1.5);
+    strokeLine(
+      ctx,
+      10,
+      y,
+      DRAW_SIZE - 10,
+      y + (Math.random() - 0.5) * 8,
+      rgba(c.r + 30, c.g + 45, c.b + 60, 0.25),
+      1.5
+    );
   }
   drawSparkles(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE * 0.3, 20, rgba(200, 230, 255, 0.5));
   // Reflection highlights
@@ -223,7 +375,15 @@ function drawFertile(ctx: CanvasRenderingContext2D, biome: Biome): void {
   drawGrassBlades(ctx, 0, 0, DRAW_SIZE, DRAW_SIZE, 100, rgba(c.r + 25, c.g + 40, c.b + 15, 0.6));
   for (let i = 0; i < 10; i++) {
     const x = 15 + i * 24 + Math.random() * 10;
-    strokeLine(ctx, x, 20, x + (Math.random() - 0.5) * 5, DRAW_SIZE - 20, rgba(c.r + 30, c.g + 50, c.b + 15, 0.5), 2);
+    strokeLine(
+      ctx,
+      x,
+      20,
+      x + (Math.random() - 0.5) * 5,
+      DRAW_SIZE - 20,
+      rgba(c.r + 30, c.g + 50, c.b + 15, 0.5),
+      2
+    );
     strokeLine(ctx, x - 5, 30, x + 3, 25, rgba(c.r + 35, c.g + 55, c.b + 20, 0.4), 1.5);
     strokeLine(ctx, x + 5, 40, x + 8, 35, rgba(c.r + 35, c.g + 55, c.b + 20, 0.4), 1.5);
   }
@@ -240,19 +400,29 @@ function drawFertile(ctx: CanvasRenderingContext2D, biome: Biome): void {
   }
 }
 
-const TERRAIN_DRAWERS: Record<TerrainType, (ctx: CanvasRenderingContext2D, biome: Biome) => void> = {
-  grass: drawGrass,
-  forest: drawForest,
-  stone: drawStone,
-  corruption: drawCorruption,
-  desert: drawDesert,
-  snow: drawSnow,
-  water: drawWater,
-  fertile: drawFertile,
-};
+const TERRAIN_DRAWERS: Record<TerrainType, (ctx: CanvasRenderingContext2D, biome: Biome) => void> =
+  {
+    grass: drawGrass,
+    forest: drawForest,
+    stone: drawStone,
+    corruption: drawCorruption,
+    desert: drawDesert,
+    snow: drawSnow,
+    water: drawWater,
+    fertile: drawFertile,
+  };
 
 export function generateTerrainTextures(biome: Biome): void {
-  const terrains: TerrainType[] = ['grass', 'forest', 'stone', 'corruption', 'desert', 'snow', 'water', 'fertile'];
+  const terrains: TerrainType[] = [
+    'grass',
+    'forest',
+    'stone',
+    'corruption',
+    'desert',
+    'snow',
+    'water',
+    'fertile',
+  ];
   for (const terrain of terrains) {
     const key = `terrain:${terrain}:${biome}`;
     if (textureFactory.has(key)) continue;
@@ -267,9 +437,8 @@ export function generateTerrainTextures(biome: Biome): void {
   const fogKey = 'terrain:fog';
   if (!textureFactory.has(fogKey)) {
     const { canvas, ctx } = createCanvas(TILE_SIZE);
-    fillRect(ctx, 0, 0, TILE_SIZE, TILE_SIZE, rgba(13, 8, 21, 0.95));
-    drawDetailNoise(ctx, 0, 0, TILE_SIZE, TILE_SIZE, 120, rgba(40, 20, 60, 0.4));
-    drawCorruptionVeins(ctx, 0, 0, TILE_SIZE, TILE_SIZE, 8, rgba(60, 30, 80, 0.3));
+    fillRect(ctx, 0, 0, TILE_SIZE, TILE_SIZE, rgba(10, 18, 23));
+    drawDetailNoise(ctx, 0, 0, TILE_SIZE, TILE_SIZE, 80, rgba(70, 91, 94, 0.12));
     textureFactory.register(fogKey, canvas);
   }
 
@@ -283,7 +452,15 @@ export function generateTerrainTextures(biome: Biome): void {
     drawPebbles(ctx, cx - 40, cx - 40, 80, 80, 30, rgba(130, 110, 70, 0.5));
     for (let i = 0; i < 6; i++) {
       const y = cx - 35 + i * 12;
-      strokeLine(ctx, cx - 40, y, cx + 40, y + (Math.random() - 0.5) * 4, rgba(90, 75, 48, 0.6), 1.5);
+      strokeLine(
+        ctx,
+        cx - 40,
+        y,
+        cx + 40,
+        y + (Math.random() - 0.5) * 4,
+        rgba(90, 75, 48, 0.6),
+        1.5
+      );
     }
     textureFactory.register(roadKey, canvas);
   }

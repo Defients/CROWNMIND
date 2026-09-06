@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "checks": [
+    "Built static app runs at /CROWNMIND/",
+    "All twelve lazy workspaces load",
+    "No development diagnostic bridge",
+    "No browser page errors or local HTTP errors",
+    "All built asset requests use the configured base path"
+  ],
+  "assets": 24,
+  "errors": [],
+  "badResponses": []
+}

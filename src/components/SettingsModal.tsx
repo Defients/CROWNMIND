@@ -6,6 +6,7 @@ import Slider from './ui/Slider';
 import Button from './ui/Button';
 import SectionHeader from './ui/SectionHeader';
 import { useUIStore } from '../stores/uiStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { useToast } from '../stores/toastStore';
 import type { SettingsState } from '../types/ui';
 
@@ -23,8 +24,8 @@ const DEFAULT_SETTINGS: SettingsState = {
     squad: 'S',
     economy: 'E',
     faction: 'F',
-    directorMode: 'D',
-    followSelected: 'G',
+    directorMode: 'R',
+    followSelected: 'H',
     closeOverlay: 'Escape',
   },
 };
@@ -55,6 +56,20 @@ export default function SettingsModal() {
   const [settings, setSettings] = useState<SettingsState>(loadSettings);
 
   useEffect(() => {
+    const saved = loadSettings();
+    useSettingsStore
+      .getState()
+      .setGraphicsQuality(
+        ['low', 'medium', 'high'].includes(saved.graphicsQuality) ? saved.graphicsQuality : 'medium'
+      );
+    useSettingsStore
+      .getState()
+      .setAnimationSpeed(
+        Number.isFinite(saved.animationSpeed) ? Math.max(0.5, Math.min(3, saved.animationSpeed)) : 1
+      );
+  }, []);
+
+  useEffect(() => {
     if (showSettings) {
       setSettings(loadSettings());
     }
@@ -62,6 +77,8 @@ export default function SettingsModal() {
 
   const handleSave = () => {
     saveSettings(settings);
+    useSettingsStore.getState().setGraphicsQuality(settings.graphicsQuality);
+    useSettingsStore.getState().setAnimationSpeed(settings.animationSpeed);
     toast.success('Settings saved');
     toggleSettings();
   };
@@ -135,9 +152,16 @@ export default function SettingsModal() {
           <SectionHeader title="Keyboard Shortcuts" icon={Keyboard} color="text-[#9b5cff]" />
           <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
             {Object.entries(settings.keyBindings).map(([action, key]) => (
-              <div key={action} className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-[#07040d] border border-[rgba(128,90,213,0.18)]">
-                <span className="text-[#eee8ff]/60 capitalize">{action.replace(/([A-Z])/g, ' $1').trim()}</span>
-                <kbd className="px-1.5 py-0.5 rounded bg-[#1a1028] border border-[rgba(128,90,213,0.28)] text-[#f5c84b] text-[9px]">{key}</kbd>
+              <div
+                key={action}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-[#07040d] border border-[rgba(128,90,213,0.18)]"
+              >
+                <span className="text-[#eee8ff]/60 capitalize">
+                  {action.replace(/([A-Z])/g, ' $1').trim()}
+                </span>
+                <kbd className="px-1.5 py-0.5 rounded bg-[#1a1028] border border-[rgba(128,90,213,0.28)] text-[#f5c84b] text-[9px]">
+                  {key}
+                </kbd>
               </div>
             ))}
           </div>
