@@ -2,202 +2,106 @@ import { Graphics, Container } from 'pixi.js';
 import type { SceneManager } from './SceneManager';
 import type { Camera } from './Camera';
 import type { ECSWorld } from '../engine';
-import type { PositionComponent, BuildingComponent } from '../engine/Component';
+import type { BuildingComponent, LairComponent, PositionComponent } from '../engine/Component';
+import { INK, QUALITY, noise, type Quality } from '../presentation/theme';
 
-interface Particle {
+interface Emitter {
+  id: number;
   x: number;
   y: number;
-  vx: number;
-  vy: number;
-  life: number;
-  maxLife: number;
-  size: number;
-  color: number;
+  kind: string;
 }
-
 export class AnimationRenderer {
-  private scene: SceneManager;
-  private container: Container = new Container();
-  private particles: Particle[] = [];
-  private time = 0;
-  private world: ECSWorld | null = null;
+  private root = new Container();
+  private graphics = new Graphics();
+  private emitters: Emitter[] = [];
   private camera: Camera | null = null;
-
+  private time = 0;
+  count = 0;
   constructor(scene: SceneManager) {
-    this.scene = scene;
-    this.container.zIndex = 5;
+    this.root.label = 'building-activity';
+    this.root.eventMode = 'none';
+    this.root.addChild(this.graphics);
+    scene.effectLayer.addChild(this.root);
   }
-
   setWorld(world: ECSWorld, camera: Camera): void {
-    this.world = world;
     this.camera = camera;
+    this.emitters = [];
+    for (const id of world.query('Building', 'Position')) {
+      const b = world.getComponent<BuildingComponent>(id, 'Building')!,
+        p = world.getComponent<PositionComponent>(id, 'Position')!;
+      if (b.isBuilt) this.emitters.push({ id, x: p.x + 0.5, y: p.y + 0.5, kind: b.buildingType });
+    }
+    for (const id of world.query('Lair', 'Position')) {
+      const l = world.getComponent<LairComponent>(id, 'Lair')!,
+        p = world.getComponent<PositionComponent>(id, 'Position')!;
+      if (l.lairName === 'The Veylthyr Spire' && l.isDiscovered && !l.isDestroyed)
+        this.emitters.push({ id, x: p.x, y: p.y, kind: 'Spire' });
+    }
   }
-
-  update(dt: number): void {
-    this.time += dt / 60;
-    this.container.removeChildren();
-
-    if (!this.world || !this.camera) return;
-
-    this.updateBuildingAnimations();
-    this.updateParticles(dt);
-    this.drawParticles();
-  }
-
-  private updateBuildingAnimations(): void {
-    if (!this.world || !this.camera) return;
-    const ids = this.world.query('Building', 'Position');
-    for (const id of ids) {
-      const pos = this.world.getComponent<PositionComponent>(id, 'Position')!;
-      const building = this.world.getComponent<BuildingComponent>(id, 'Building')!;
-      if (!building.isBuilt) continue;
-      if (!this.camera.isVisible(pos.x + 0.5, pos.y + 0.5, 3)) continue;
-
-      const cx = pos.x + 0.5;
-      const cy = pos.y + 0.5;
-
-      switch (building.buildingType) {
-        case 'TownHall':
-          this.animateFlag(cx, cy - 1.0);
-          break;
-        case 'Blacksmith':
-          this.animateForge(cx, cy);
-          break;
-        case 'ManaWell':
-          this.animateManaParticles(cx, cy);
-          break;
-        case 'Housing':
-          this.animateSmoke(cx + 0.3, cy - 0.5);
-          break;
-        case 'ZeeyaShrine':
-          this.animateHolySparkles(cx, cy);
-          break;
-        case 'GuardTower':
-          this.animateTorchFlicker(cx, cy);
-          break;
+  update(dt: number, quality: Quality = 'medium', reducedMotion = false, night = false): void {
+    this.time += dt;
+    const g = this.graphics.clear();
+    this.count = 0;
+    const cap = reducedMotion ? 0 : QUALITY[quality].particles;
+    for (const e of this.emitters) {
+      if (!this.camera?.isVisible(e.x, e.y, 4)) continue;
+      const color =
+        e.kind === 'Spire'
+          ? INK.threat
+          : e.kind === 'ManaWell'
+            ? INK.violet
+            : e.kind === 'ZeeyaShrine'
+              ? INK.green
+              : INK.gold;
+      const active = [
+        'Spire',
+        'ManaWell',
+        'Blacksmith',
+        'ZeeyaShrine',
+        'GuardTower',
+        'TownHall',
+      ].includes(e.kind);
+      if (!active && !night) continue;
+      const pulse = reducedMotion
+        ? 0.5
+        : 0.5 + Math.sin(this.time * (e.kind === 'Spire' ? 1.3 : 2) + e.id) * 0.12;
+      g.ellipse(
+        e.x,
+        e.y + 0.3,
+        e.kind === 'Spire' ? 2.4 : 0.65,
+        e.kind === 'Spire' ? 1.4 : 0.4
+      ).fill({ color, alpha: pulse * (night ? 0.13 : 0.07) });
+      if (e.kind === 'Spire') {
+        for (let i = 0; i < 3; i++) {
+          const r = 1.3 + i * 0.18,
+            a = i * 2 + (reducedMotion ? 0 : this.time * 0.15);
+          g.moveTo(e.x + Math.cos(a) * r, e.y + Math.sin(a) * r);
+          g.arc(e.x, e.y, r, a, a + 0.9).stroke({ color, width: 0.025, alpha: 0.3 });
+        }
+      } else if (['Blacksmith', 'GuardTower', 'TownHall'].includes(e.kind) || night) {
+        g.circle(e.x + 0.12, e.y + 0.18, 0.07).fill({ color: 0xffd995, alpha: 0.55 + pulse * 0.2 });
+      }
+      const density = e.kind === 'Spire' ? 12 : active ? 5 : 2;
+      for (let i = 0; i < density && this.count < cap; i++) {
+        this.count++;
+        const phase = (this.time * (e.kind === 'Spire' ? 0.15 : 0.35) + noise(e.id * 19 + i)) % 1;
+        const angle = noise(e.id * 31 + i) * Math.PI * 2 + this.time * 0.12;
+        const r = e.kind === 'Spire' ? 1.4 : 0.4;
+        const x = e.x + Math.cos(angle) * r,
+          y = e.y + 0.3 + Math.sin(angle) * r * 0.3 - phase * (e.kind === 'Spire' ? 2 : 0.8);
+        g.circle(x, y, (e.kind === 'Blacksmith' ? 0.02 : 0.035) * (1 - phase * 0.5)).fill({
+          color,
+          alpha: Math.sin(phase * Math.PI) * 0.55,
+        });
       }
     }
   }
-
-  private animateFlag(cx: number, cy: number): void {
-    const sway = Math.sin(this.time * 2) * 0.08;
-    const g = new Graphics();
-    g.moveTo(cx, cy);
-    g.lineTo(cx + 0.15 + sway, cy + 0.05);
-    g.lineTo(cx, cy + 0.1);
-    g.closePath();
-    g.fill({ color: 0xb4323c, alpha: 0.7 });
-    this.container.addChild(g);
-  }
-
-  private animateForge(cx: number, cy: number): void {
-    const flicker = 0.3 + Math.sin(this.time * 8) * 0.15 + Math.random() * 0.1;
-    const g = new Graphics();
-    g.circle(cx, cy + 0.3, 0.15).fill({ color: 0xff7800, alpha: flicker * 0.4 });
-    g.circle(cx, cy + 0.3, 0.08).fill({ color: 0xffc040, alpha: flicker * 0.5 });
-    this.container.addChild(g);
-
-    if (Math.random() < 0.15) {
-      this.particles.push({
-        x: cx + (Math.random() - 0.5) * 0.2,
-        y: cy + 0.3,
-        vx: (Math.random() - 0.5) * 0.01,
-        vy: -0.02 - Math.random() * 0.01,
-        life: 0,
-        maxLife: 0.5 + Math.random() * 0.3,
-        size: 0.02 + Math.random() * 0.02,
-        color: 0xffa030,
-      });
-    }
-  }
-
-  private animateManaParticles(cx: number, cy: number): void {
-    if (Math.random() < 0.2) {
-      const angle = Math.random() * Math.PI * 2;
-      const r = 0.3 + Math.random() * 0.3;
-      this.particles.push({
-        x: cx + Math.cos(angle) * r,
-        y: cy + 0.3 + Math.sin(angle) * r * 0.5,
-        vx: 0,
-        vy: -0.015 - Math.random() * 0.01,
-        life: 0,
-        maxLife: 1.0 + Math.random() * 0.5,
-        size: 0.03 + Math.random() * 0.02,
-        color: 0x9b5cff,
-      });
-    }
-  }
-
-  private animateSmoke(cx: number, cy: number): void {
-    if (Math.random() < 0.08) {
-      this.particles.push({
-        x: cx + (Math.random() - 0.5) * 0.1,
-        y: cy,
-        vx: (Math.random() - 0.5) * 0.005,
-        vy: -0.01 - Math.random() * 0.008,
-        life: 0,
-        maxLife: 1.5 + Math.random() * 0.5,
-        size: 0.04 + Math.random() * 0.03,
-        color: 0x8a8a96,
-      });
-    }
-  }
-
-  private animateHolySparkles(cx: number, cy: number): void {
-    if (Math.random() < 0.1) {
-      const angle = Math.random() * Math.PI * 2;
-      const r = 0.2 + Math.random() * 0.5;
-      this.particles.push({
-        x: cx + Math.cos(angle) * r,
-        y: cy + Math.sin(angle) * r * 0.7,
-        vx: 0,
-        vy: -0.005,
-        life: 0,
-        maxLife: 0.8 + Math.random() * 0.4,
-        size: 0.02 + Math.random() * 0.015,
-        color: 0x96ffc8,
-      });
-    }
-  }
-
-  private animateTorchFlicker(cx: number, cy: number): void {
-    const flickerL = 0.4 + Math.sin(this.time * 10) * 0.2 + Math.random() * 0.1;
-    const flickerR = 0.4 + Math.sin(this.time * 10 + 1.5) * 0.2 + Math.random() * 0.1;
-    const g = new Graphics();
-    g.circle(cx - 0.4, cy - 0.5, 0.06).fill({ color: 0xffa040, alpha: flickerL * 0.5 });
-    g.circle(cx + 0.4, cy - 0.5, 0.06).fill({ color: 0xffa040, alpha: flickerR * 0.5 });
-    this.container.addChild(g);
-  }
-
-  private updateParticles(dt: number): void {
-    const dts = dt / 60;
-    for (let i = this.particles.length - 1; i >= 0; i--) {
-      const p = this.particles[i];
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.life += dts;
-      if (p.life >= p.maxLife) {
-        this.particles.splice(i, 1);
-      }
-    }
-  }
-
-  private drawParticles(): void {
-    for (const p of this.particles) {
-      const alpha = 1 - p.life / p.maxLife;
-      const size = p.size * (1 + p.life / p.maxLife * 0.5);
-      const g = new Graphics();
-      g.circle(p.x, p.y, size).fill({ color: p.color, alpha: alpha * 0.6 });
-      this.container.addChild(g);
-    }
-  }
-
-  destroy(): void {
-    this.container.removeChildren();
-    this.particles = [];
-  }
-
   getContainer(): Container {
-    return this.container;
+    return this.root;
+  }
+  destroy(): void {
+    this.emitters = [];
+    this.root.destroy({ children: true });
   }
 }

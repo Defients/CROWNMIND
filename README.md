@@ -2,13 +2,17 @@
 
 An indirect-control fantasy kingdom simulation where a sovereign AI bot (the Klÿ-Sovereign) guides autonomous heroes to defend Pyahhold and destroy the Veylthyr Spire before Day 60.
 
+**Presentation Engine II** gives the kingdom a full world stage, a contextual
+inspector, grouped strategic workspaces and a Sovereign cognition instrument.
+See the [presentation architecture and validation notes](docs/PRESENTATION_ENGINE_II.md).
+
 ## Premise
 
 You are not the ruler. The bot is. You watch the Klÿ-Sovereign make strategic decisions — building infrastructure, hiring heroes, placing bounties, researching upgrades, managing diplomacy, and launching dungeon expeditions. Heroes have their own personalities (courage, greed, caution) and act autonomously. You can intervene with spells and bounties, but the bot drives the core strategy.
 
 ## Game Modes
 
-- **Observer** — Watch the AI play untouched. No interaction.
+- **Observer** — Watch the AI play with read-only inspection.
 - **Co-Sovereign** — Limited Sovereign Favor to cast spells and place bounties. Each intervention costs 1 Favor.
 - **Sandbox** — No limits. Free spells, free bounties, full debug access.
 - **Endless** — No time limit. Survive and score as high as possible.
@@ -29,6 +33,7 @@ You are not the ruler. The bot is. You watch the Klÿ-Sovereign make strategic d
 - **1 / 2 / 4** — Set game speed (Normal / Fast / Hyper)
 - **Click** — Select any tile, hero, monster, building, or lair on the map
 - **Drag** — Pan the map viewport
+- **Arrow keys** — Pan without colliding with workspace shortcuts
 - **Zoom buttons** — Zoom in/out on the map
 - **T** — Toggle Tech Tree panel
 - **S** — Toggle Squad panel
@@ -40,6 +45,7 @@ You are not the ruler. The bot is. You watch the Klÿ-Sovereign make strategic d
 - **K** — Toggle Skill Trees panel
 - **V** — Toggle Rivals panel
 - **J** — Toggle Scenario panel
+- **C / L** — Open Sovereign Cognition / Chronicle
 - **R** — Toggle Director Mode
 - **H** — Toggle Follow Selected
 - **M** — Cycle map overlay modes
@@ -57,6 +63,10 @@ You are not the ruler. The bot is. You watch the Klÿ-Sovereign make strategic d
 - **Dwarven Runesmith** — Craftsmen who forge runes and wield battlehammers.
 
 ## Sovereign Spells
+
+These are existing game definitions. Tactical spell callbacks are not connected
+in this build; the inspector explains that limitation. Presentation Engine II
+preserves the simulation and does not add new intervention mechanics.
 
 - **Rally Spark** (80g) — Boosts courage of nearby heroes to 100%.
 - **Zeeya Mend** (100g) — Heals nearby heroes by 75 HP.

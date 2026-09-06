@@ -1,0 +1,53 @@
+{
+  "revision": "16d8bdf869bd25a57c2d341db59c164e47a5680a",
+  "cases": [
+    {
+      "config": {
+        "seedString": "sovereign-table",
+        "biome": "temperate",
+        "difficulty": "standard",
+        "gameMode": "observer",
+        "mapSize": "small",
+        "seed": 2352240469,
+        "timeLimit": 60
+      },
+      "ticks": 180,
+      "sha256": "0a6142dc858ad31be5e61270c74ec2eef874e1fc95ffba920f6b026181282465",
+      "day": 19,
+      "status": "playing",
+      "entities": 22
+    },
+    {
+      "config": {
+        "seedString": "spire-resilience",
+        "biome": "arid",
+        "difficulty": "hard",
+        "gameMode": "sandbox",
+        "mapSize": "standard",
+        "seed": 2852390365,
+        "timeLimit": 60
+      },
+      "ticks": 180,
+      "sha256": "fc8592e182acd88d49ad076e19493274cac03b036160c0be90d23a6c935c9b2d",
+      "day": 19,
+      "status": "playing",
+      "entities": 24
+    },
+    {
+      "config": {
+        "seedString": "frozen-crown",
+        "biome": "tundra",
+        "difficulty": "standard",
+        "gameMode": "observer",
+        "mapSize": "large",
+        "seed": 2805850871,
+        "timeLimit": 60
+      },
+      "ticks": 120,
+      "sha256": "ac56280b3b98b43a7ab6bffd320b6e04a077b8645fc1ab85cb391ea06c9cabb0",
+      "day": 13,
+      "status": "playing",
+      "entities": 25
+    }
+  ]
+}

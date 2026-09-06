@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { Swords, Eye, Gamepad2, Star, Map as MapIcon, Mountain, Sprout, Snowflake, Clock, Dices, Play, Save, Upload } from 'lucide-react';
+import {
+  Swords,
+  Eye,
+  Gamepad2,
+  Star,
+  Map as MapIcon,
+  Mountain,
+  Sprout,
+  Snowflake,
+  Clock,
+  Dices,
+  Play,
+  Save,
+  Upload,
+} from 'lucide-react';
 import type { GameConfig, MapSize, Difficulty, GameMode } from '../types/game';
 import type { Biome } from '../types/world';
 import { MAP_SIZES, MAP_SIZE_LABELS, DEFAULT_TIME_LIMIT } from '../types/game';
@@ -8,6 +22,7 @@ import { useGameStore } from '../stores/gameStore';
 import { useSaveStore } from '../stores/saveStore';
 import { deserializeSave } from '../persistence/SaveSerializer';
 import { hashSeed } from '../utils/rng';
+import RealmPreview from './RealmPreview';
 
 const biomeIcons: Record<Biome, typeof Mountain> = {
   temperate: Sprout,
@@ -55,19 +70,45 @@ export default function GameSetupScreen() {
   }, [showSaves, refreshSaves]);
 
   return (
-    <div className="min-h-screen bg-[#07040d] flex items-center justify-center p-4 font-sans safe-top">
-      <div className="w-full max-w-2xl bg-[#120b1c] border border-[rgba(128,90,213,0.28)] rounded-2xl glow-subtle p-6 flex flex-col gap-5 max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-[#f5c84b] rounded-2xl flex items-center justify-center text-[#07040d] font-serif font-bold text-3xl glow-gold mx-auto mb-3" aria-hidden="true">
-            C
-          </div>
-          <h1 className="text-2xl font-serif italic text-[#f5c84b] tracking-wide">CROWNMIND</h1>
-          <p className="text-xs uppercase tracking-widest text-[#eee8ff]/40 font-mono mt-1">Veylthyr Rising — v2</p>
+    <div className="awakening-screen" data-biome={biome}>
+      <section className="awakening-vista">
+        <span className="eyebrow">VEYLTHYR RISING / PRESENTATION ENGINE II</span>
+        <h1>CROWNMIND</h1>
+        <p className="awakening-thesis">
+          A kingdom alive.
+          <br />A mind within it.
+        </p>
+        <RealmPreview seed={seedString} biome={biome} difficulty={difficulty} />
+        <div className="awakening-note">
+          <span>THE LIVING SOVEREIGN TABLE</span>
+          <p>
+            The Sovereign builds, reasons, and leads. Witness its decisions. Read their
+            consequences. Survive the shadow of Veylthyr.
+          </p>
+        </div>
+        <div className="awakening-meta">
+          <span>{BIOMES[biome].label} realm</span>
+          <span>
+            {MAP_SIZES[mapSize]} × {MAP_SIZES[mapSize]} tiles
+          </span>
+          <span>{timeLimit} days</span>
+        </div>
+      </section>
+      <div className="awakening-config custom-scrollbar">
+        <div className="awakening-heading">
+          <span className="eyebrow">01 / Bind a realm</span>
+          <h2>Awaken the Sovereign</h2>
+          <p>Choose the world this intelligence will inherit.</p>
         </div>
 
         <div className="flex flex-col gap-4">
           <div>
-            <label className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">Seed</label>
+            <label
+              htmlFor="seed-input"
+              className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block"
+            >
+              Kingdom identity / seed
+            </label>
             <div className="flex gap-2">
               <input
                 id="seed-input"
@@ -90,13 +131,27 @@ export default function GameSetupScreen() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">Game Mode</label>
+              <label className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">
+                Game Mode
+              </label>
               <div className="flex flex-col gap-1">
-                {([
-                  { value: 'observer', label: 'Observer', icon: Eye, desc: 'Watch the AI play' },
-                  { value: 'coSovereign', label: 'Co-Sovereign', icon: Swords, desc: 'Interact with spells & bounties' },
-                  { value: 'sandbox', label: 'Sandbox', icon: Gamepad2, desc: 'Full control' },
-                ] as const).map(({ value, label, icon: Icon, desc }) => (
+                {(
+                  [
+                    { value: 'observer', label: 'Observer', icon: Eye, desc: 'Watch the AI play' },
+                    {
+                      value: 'coSovereign',
+                      label: 'Co-Sovereign',
+                      icon: Swords,
+                      desc: 'Interact with spells & bounties',
+                    },
+                    {
+                      value: 'sandbox',
+                      label: 'Sandbox',
+                      icon: Gamepad2,
+                      desc: 'Unrestricted simulation',
+                    },
+                  ] as const
+                ).map(({ value, label, icon: Icon, desc }) => (
                   <button
                     type="button"
                     key={value}
@@ -120,13 +175,17 @@ export default function GameSetupScreen() {
             </div>
 
             <div>
-              <label className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">Difficulty</label>
+              <label className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">
+                Difficulty
+              </label>
               <div className="flex flex-col gap-1">
-                {([
-                  { value: 'easy', label: 'Easy', icon: Star, color: 'text-[#38e68b]' },
-                  { value: 'standard', label: 'Standard', icon: Star, color: 'text-[#ffb84d]' },
-                  { value: 'hard', label: 'Hard', icon: Star, color: 'text-[#ff4d6d]' },
-                ] as const).map(({ value, label, icon: Icon, color }) => (
+                {(
+                  [
+                    { value: 'easy', label: 'Easy', icon: Star, color: 'text-[#38e68b]' },
+                    { value: 'standard', label: 'Standard', icon: Star, color: 'text-[#ffb84d]' },
+                    { value: 'hard', label: 'Hard', icon: Star, color: 'text-[#ff4d6d]' },
+                  ] as const
+                ).map(({ value, label, icon: Icon, color }) => (
                   <button
                     type="button"
                     key={value}
@@ -139,7 +198,10 @@ export default function GameSetupScreen() {
                         : 'border-[rgba(128,90,213,0.18)] bg-[#07040d] text-[#eee8ff]/50 hover:text-[#eee8ff]/80'
                     } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b5cff]/50`}
                   >
-                    <Icon className={`w-4 h-4 ${difficulty === value ? color : ''}`} aria-hidden="true" />
+                    <Icon
+                      className={`w-4 h-4 ${difficulty === value ? color : ''}`}
+                      aria-hidden="true"
+                    />
                     <span className="text-xs font-semibold">{label}</span>
                   </button>
                 ))}
@@ -149,7 +211,9 @@ export default function GameSetupScreen() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">Biome</label>
+              <label className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">
+                Biome
+              </label>
               <div className="flex gap-1">
                 {BIOME_LIST.map((b) => {
                   const Icon = biomeIcons[b];
@@ -175,7 +239,9 @@ export default function GameSetupScreen() {
             </div>
 
             <div>
-              <label className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">Map Size</label>
+              <label className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">
+                Map Size
+              </label>
               <div className="flex gap-1">
                 {(['small', 'standard', 'large'] as MapSize[]).map((s) => (
                   <button
@@ -199,7 +265,12 @@ export default function GameSetupScreen() {
           </div>
 
           <div>
-            <label htmlFor="time-limit-slider" className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block">Time Limit: {timeLimit} days</label>
+            <label
+              htmlFor="time-limit-slider"
+              className="text-[10px] font-mono uppercase text-[#eee8ff]/60 mb-1.5 block"
+            >
+              Time Limit: {timeLimit} days
+            </label>
             <input
               id="time-limit-slider"
               type="range"
@@ -218,11 +289,11 @@ export default function GameSetupScreen() {
           <button
             type="button"
             onClick={handleStart}
-            aria-label="Start new campaign"
+            aria-label="Awaken CROWNMIND"
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#f5c84b] text-[#07040d] rounded-xl font-bold text-sm hover:bg-[#ffd96b] transition-colors glow-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5c84b]/50"
           >
             <Play className="w-4 h-4" aria-hidden="true" />
-            Start Campaign
+            Awaken CROWNMIND
           </button>
           <button
             type="button"
@@ -232,6 +303,7 @@ export default function GameSetupScreen() {
             className="px-4 py-3 bg-[#1a1028] border border-[rgba(128,90,213,0.28)] rounded-xl text-[#eee8ff]/70 hover:text-[#eee8ff] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9b5cff]/50"
           >
             <Save className="w-4 h-4" aria-hidden="true" />
+            <span className="text-xs ml-2">Load</span>
           </button>
         </div>
 
@@ -254,7 +326,8 @@ export default function GameSetupScreen() {
                     <div className="flex flex-col">
                       <span className="text-xs text-[#eee8ff]">{save.name}</span>
                       <span className="text-[9px] text-[#eee8ff]/40 font-mono">
-                        Day {save.state.day} — {save.config.difficulty} — {new Date(save.timestamp).toLocaleDateString()}
+                        Day {save.state.day} — {save.config.difficulty} —{' '}
+                        {new Date(save.timestamp).toLocaleDateString()}
                       </span>
                     </div>
                   </button>

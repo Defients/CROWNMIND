@@ -4,138 +4,113 @@ import type { Camera } from './Camera';
 import type { ECSWorld } from '../engine';
 import type { GameState } from '../types/game';
 import type { OverlayMode } from '../types/ui';
-import type { PositionComponent, HealthComponent, HeroAIComponent, MonsterAIComponent, LairComponent, BuildingComponent, BountyTargetComponent, FactionComponent } from '../engine/Component';
+import { component, isObserved, positionOf, resolveDecisionTarget } from '../presentation/events';
+import { INK } from '../presentation/theme';
 
 export class OverlayRenderer {
-  private app: Application;
-  private scene: SceneManager;
-
-  constructor(app: Application, scene: SceneManager) {
-    this.app = app;
-    this.scene = scene;
+  private graphics = new Graphics();
+  constructor(_app: Application, scene: SceneManager) {
+    this.graphics.label = 'semantic-overlays';
+    this.graphics.eventMode = 'none';
+    scene.overlayLayer.addChild(this.graphics);
   }
-
-  render(world: ECSWorld, state: GameState, camera: Camera, mode: OverlayMode): void {
-    this.scene.clearLayer(this.scene.overlayLayer);
+  render(_world: ECSWorld, state: GameState, camera: Camera, mode: OverlayMode): void {
+    const g = this.graphics.clear();
     if (mode === 'none') return;
-
-    const g = new Graphics();
-
-    switch (mode) {
-      case 'threat':
-        this.renderThreatOverlay(world, state, camera, g);
-        break;
-      case 'bounties':
-        this.renderBountyOverlay(world, state, camera, g);
-        break;
-      case 'heroes':
-        this.renderHeroOverlay(world, state, camera, g);
-        break;
-      case 'fog':
-        this.renderFogOverlay(world, state, camera, g);
-        break;
-      case 'resources':
-        this.renderResourceOverlay(world, state, camera, g);
-        break;
-      case 'sovereign':
-        this.renderSovereignOverlay(world, state, camera, g);
-        break;
-    }
-
-    this.scene.overlayLayer.addChild(g);
-  }
-
-  private renderThreatOverlay(world: ECSWorld, state: GameState, camera: Camera, g: Graphics): void {
-    const lairIds = world.query('Lair', 'Position');
-    for (const id of lairIds) {
-      const lair = world.getComponent<LairComponent>(id, 'Lair')!;
-      if (lair.isDestroyed) continue;
-      const pos = world.getComponent<PositionComponent>(id, 'Position')!;
-      const radius = lair.lairName === 'The Veylthyr Spire' ? 8 : lair.threatLevel === 'high' ? 5 : lair.threatLevel === 'medium' ? 4 : 3;
-      const alpha = lair.lairName === 'The Veylthyr Spire' ? 0.15 : 0.08;
-      g.circle(pos.x, pos.y, radius).fill({ color: 0xff4d6d, alpha });
-    }
-
-    const monsterIds = world.query('MonsterAI', 'Position');
-    for (const id of monsterIds) {
-      const pos = world.getComponent<PositionComponent>(id, 'Position')!;
-      g.circle(pos.x, pos.y, 2).fill({ color: 0xff4d6d, alpha: 0.1 });
-    }
-  }
-
-  private renderBountyOverlay(world: ECSWorld, state: GameState, camera: Camera, g: Graphics): void {
-    const bountyIds = world.query('BountyTarget');
-    for (const id of bountyIds) {
-      const bounty = world.getComponent<BountyTargetComponent>(id, 'BountyTarget')!;
-      if (bounty.bountyStatus !== 'posted') continue;
-      g.circle(bounty.targetX, bounty.targetY, 3).fill({ color: 0xf5c84b, alpha: 0.1 });
-      g.circle(bounty.targetX, bounty.targetY, 1.5).fill({ color: 0xf5c84b, alpha: 0.2 });
-    }
-  }
-
-  private renderHeroOverlay(world: ECSWorld, state: GameState, camera: Camera, g: Graphics): void {
-    const heroIds = world.query('HeroAI', 'Position');
-    for (const id of heroIds) {
-      const pos = world.getComponent<PositionComponent>(id, 'Position')!;
-      g.circle(pos.x, pos.y, 2).fill({ color: 0x38e68b, alpha: 0.08 });
-    }
-  }
-
-  private renderFogOverlay(world: ECSWorld, state: GameState, camera: Camera, g: Graphics): void {
-    const { grid, mapSize } = state;
-    const startX = Math.max(0, Math.floor(camera.x - camera.viewportWidth / (2 * camera.zoom)) - 2);
-    const endX = Math.min(mapSize, Math.ceil(camera.x + camera.viewportWidth / (2 * camera.zoom)) + 2);
-    const startY = Math.max(0, Math.floor(camera.y - camera.viewportHeight / (2 * camera.zoom)) - 2);
-    const endY = Math.min(mapSize, Math.ceil(camera.y + camera.viewportHeight / (2 * camera.zoom)) + 2);
-
-    for (let x = startX; x < endX; x += 2) {
-      for (let y = startY; y < endY; y += 2) {
-        const cell = grid[x]?.[y];
-        if (!cell || !cell.isExplored) {
-          g.rect(x, y, 2, 2).fill({ color: 0x000000, alpha: 0.7 });
+    let paths = 0;
+    for (const key of Object.keys(state.world.entities)) {
+      const id = Number(key),
+        p = positionOf(state, id);
+      if (!isObserved(state, id)) continue;
+      const lair = component(state, id, 'Lair'),
+        bounty = component(state, id, 'BountyTarget');
+      if (p && mode === 'threat' && lair && !lair.isDestroyed) {
+        const r = id === state.spireEntityId ? 8 : lair.threatLevel === 'high' ? 5 : 3;
+        g.circle(p.x, p.y, r).fill({ color: INK.threat, alpha: 0.045 });
+        for (let i = 0; i < 12; i++) {
+          const a = (i * Math.PI) / 6;
+          g.moveTo(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r);
+          g.arc(p.x, p.y, r, a, a + 0.22).stroke({ color: INK.threat, width: 0.035, alpha: 0.5 });
         }
       }
-    }
-  }
-
-  private renderResourceOverlay(world: ECSWorld, state: GameState, camera: Camera, g: Graphics): void {
-    const { grid, mapSize } = state;
-    const startX = Math.max(0, Math.floor(camera.x - camera.viewportWidth / (2 * camera.zoom)) - 1);
-    const endX = Math.min(mapSize, Math.ceil(camera.x + camera.viewportWidth / (2 * camera.zoom)) + 1);
-    const startY = Math.max(0, Math.floor(camera.y - camera.viewportHeight / (2 * camera.zoom)) - 1);
-    const endY = Math.min(mapSize, Math.ceil(camera.y + camera.viewportHeight / (2 * camera.zoom)) + 1);
-
-    for (let x = startX; x < endX; x++) {
-      for (let y = startY; y < endY; y++) {
-        const cell = grid[x]?.[y];
-        if (!cell || !cell.isExplored || !cell.resourceDeposit) continue;
-        const color = this.getDepositColor(cell.resourceDeposit);
-        g.circle(x + 0.5, y + 0.5, 0.3).fill({ color, alpha: 0.3 });
+      if (bounty?.bountyStatus === 'posted' && (mode === 'bounties' || mode === 'sovereign')) {
+        g.regularPoly(bounty.targetX, bounty.targetY, 1.2, 4, Math.PI / 4).stroke({
+          color: INK.gold,
+          width: 0.05,
+        });
       }
+      if (
+        p &&
+        (mode === 'heroes' || mode === 'sovereign') &&
+        component(state, id, 'HeroAI') &&
+        paths < 8
+      ) {
+        const movement = component(state, id, 'Movement');
+        if (movement?.path?.length && camera.isVisible(p.x, p.y)) {
+          g.moveTo(p.x, p.y);
+          for (const step of movement.path.slice(0, 16)) g.lineTo(step.x, step.y);
+          g.stroke({ color: mode === 'heroes' ? INK.cyan : INK.violet, width: 0.035, alpha: 0.45 });
+          paths++;
+        }
+      }
+      if (p && mode === 'diplomacy') {
+        const f = component(state, id, 'Faction');
+        if (f) {
+          const standing = state.factionStandings?.[id];
+          const color =
+            standing != null
+              ? standing > 20
+                ? INK.green
+                : standing <= -20
+                  ? INK.threat
+                  : INK.warning
+              : f.disposition === 'hostile'
+                ? INK.threat
+                : INK.cyan;
+          g.regularPoly(p.x, p.y, 1.5, 6).stroke({ color, width: 0.04, alpha: 0.7 });
+        }
+      }
+      if (p && mode === 'dungeons' && component(state, id, 'DungeonEntrance'))
+        g.regularPoly(p.x, p.y, 1.2, 4).stroke({ color: INK.violet, width: 0.05 });
     }
-  }
-
-  private renderSovereignOverlay(world: ECSWorld, state: GameState, camera: Camera, g: Graphics): void {
-    const heroIds = world.query('HeroAI', 'Position');
-    for (const id of heroIds) {
-      const pos = world.getComponent<PositionComponent>(id, 'Position')!;
-      g.circle(pos.x, pos.y, 1.5).fill({ color: 0x9b5cff, alpha: 0.06 });
+    if (mode === 'sovereign') {
+      const d = state.sovereignMind.recentDecisions.at(-1),
+        target = d && resolveDecisionTarget(state, d);
+      if (target)
+        g.regularPoly(target.point.x, target.point.y, 1.5, 6).stroke({
+          color: INK.gold,
+          width: 0.05,
+          alpha: 0.6,
+        });
     }
-
-    const buildingIds = world.query('Building', 'Position');
-    for (const id of buildingIds) {
-      const pos = world.getComponent<PositionComponent>(id, 'Position')!;
-      g.circle(pos.x + 0.5, pos.y + 0.5, 1.2).fill({ color: 0x26f4ff, alpha: 0.06 });
-    }
-  }
-
-  private getDepositColor(resource: string): number {
-    switch (resource) {
-      case 'wood': return 0x4a8a3a;
-      case 'stone': return 0x8a8a9a;
-      case 'food': return 0x6ac84a;
-      case 'mana': return 0x9b5cff;
-      default: return 0xffffff;
+    if (mode === 'resources' || mode === 'fog') {
+      const b = camera.getViewportBounds();
+      for (
+        let x = Math.max(0, Math.floor(b.x));
+        x < Math.min(state.mapSize, Math.ceil(b.x + b.width));
+        x++
+      )
+        for (
+          let y = Math.max(0, Math.floor(b.y));
+          y < Math.min(state.mapSize, Math.ceil(b.y + b.height));
+          y++
+        ) {
+          const c = state.grid[x]?.[y];
+          if (!c) continue;
+          if (mode === 'resources' && c.isExplored && c.resourceDeposit) {
+            const color =
+              c.resourceDeposit === 'mana'
+                ? INK.violet
+                : c.resourceDeposit === 'gold'
+                  ? INK.gold
+                  : INK.green;
+            g.regularPoly(x + 0.5, y + 0.5, 0.35, 4).stroke({ color, width: 0.04, alpha: 0.75 });
+          }
+          if (mode === 'fog' && !c.isExplored)
+            g.moveTo(x + 0.2, y + 0.2)
+              .lineTo(x + 0.8, y + 0.8)
+              .stroke({ color: INK.cyan, width: 0.02, alpha: 0.15 });
+        }
     }
   }
 }

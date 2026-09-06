@@ -1,192 +1,221 @@
 import { Application, Container, FederatedPointerEvent, FederatedWheelEvent } from 'pixi.js';
 
 export class Camera {
-  private app: Application;
-  private worldLayer: Container;
-  x: number = 0;
-  y: number = 0;
-  zoom: number = 14;
-  minZoom: number = 4;
-  maxZoom: number = 256;
-  private isDragging: boolean = false;
-  private lastDragX: number = 0;
-  private lastDragY: number = 0;
-  private downX: number = 0;
-  private downY: number = 0;
-  viewportWidth: number = 0;
-  viewportHeight: number = 0;
-  private followTarget: { x: number; y: number } | null = null;
-  private keys: Set<string> = new Set();
-  private keyHandlerDown: ((e: KeyboardEvent) => void) | null = null;
-  private keyHandlerUp: ((e: KeyboardEvent) => void) | null = null;
-
+  x = 0;
+  y = 0;
+  zoom = 36;
+  minZoom = 8;
+  maxZoom = 128;
+  viewportWidth: number;
+  viewportHeight: number;
   onPanEnd: (() => void) | null = null;
-  onClick: ((worldX: number, worldY: number) => void) | null = null;
-
-  constructor(app: Application, worldLayer: Container) {
-    this.app = app;
-    this.worldLayer = worldLayer;
+  onClick: ((x: number, y: number) => void) | null = null;
+  onManualInput: (() => void) | null = null;
+  revision = 0;
+  private dragging = false;
+  private downX = 0;
+  private downY = 0;
+  private lastX = 0;
+  private lastY = 0;
+  private keys = new Set<string>();
+  private destination: { x: number; y: number } | null = null;
+  private directorDestination = false;
+  private mapSize = 64;
+  private enabled = true;
+  constructor(
+    private app: Application,
+    private worldLayer: Container
+  ) {
     this.viewportWidth = app.screen.width;
     this.viewportHeight = app.screen.height;
-    this.setupInput();
-    this.setupKeyboard();
+    app.stage.eventMode = 'static';
+    app.stage.hitArea = app.screen;
+    app.stage.on('pointerdown', this.pointerDown);
+    app.stage.on('pointermove', this.pointerMove);
+    app.stage.on('pointerup', this.pointerUp);
+    app.stage.on('pointerupoutside', this.pointerUpOutside);
+    app.stage.on('wheel', this.wheel);
+    window.addEventListener('keydown', this.keyDown);
+    window.addEventListener('keyup', this.keyUp);
+    window.addEventListener('blur', this.blur);
     this.updateTransform();
   }
-
-  updateViewport(width: number, height: number): void {
-    this.viewportWidth = width;
-    this.viewportHeight = height;
+  setMapSize(size: number): void {
+    this.mapSize = size;
+  }
+  setInputEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+    if (!enabled) this.blur();
+  }
+  updateViewport(w: number, h: number): void {
+    this.viewportWidth = w;
+    this.viewportHeight = h;
+    this.app.stage.hitArea = this.app.screen;
     this.updateTransform();
   }
-
+  manual(): void {
+    this.destination = null;
+    this.onManualInput?.();
+  }
   setZoom(zoom: number): void {
     this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
     this.updateTransform();
   }
-
   zoomIn(): void {
-    this.setZoom(this.zoom * 1.15);
+    this.manual();
+    this.setZoom(this.zoom * 1.2);
   }
-
   zoomOut(): void {
-    this.setZoom(this.zoom / 1.15);
+    this.manual();
+    this.setZoom(this.zoom / 1.2);
   }
-
   panTo(x: number, y: number): void {
+    this.destination = null;
     this.x = x;
     this.y = y;
     this.updateTransform();
   }
-
+  easeTo(x: number, y: number, fromDirector = false): void {
+    this.destination = { x, y };
+    this.directorDestination = fromDirector;
+  }
+  cancelDirectorShot(): void {
+    if (this.directorDestination) this.destination = null;
+    this.directorDestination = false;
+  }
   follow(target: { x: number; y: number } | null): void {
-    this.followTarget = target;
+    this.destination = target;
+    this.directorDestination = false;
   }
-
-  update(): void {
-    if (this.followTarget) {
-      this.x = this.followTarget.x;
-      this.y = this.followTarget.y;
+  update(dt = 1 / 60, reducedMotion = false): void {
+    let dx = 0,
+      dy = 0;
+    if (this.keys.has('arrowleft')) dx--;
+    if (this.keys.has('arrowright')) dx++;
+    if (this.keys.has('arrowup')) dy--;
+    if (this.keys.has('arrowdown')) dy++;
+    if (dx || dy) {
+      this.manual();
+      this.x += (dx * dt * 450) / this.zoom;
+      this.y += (dy * dt * 450) / this.zoom;
       this.updateTransform();
-      return;
-    }
-    this.handleKeyboardPan();
-  }
-
-  private handleKeyboardPan(): void {
-    if (this.keys.size === 0) return;
-    const panSpeed = 3.0 / this.zoom;
-    let dx = 0, dy = 0;
-    if (this.keys.has('w') || this.keys.has('arrowup')) dy -= panSpeed;
-    if (this.keys.has('s') || this.keys.has('arrowdown')) dy += panSpeed;
-    if (this.keys.has('a') || this.keys.has('arrowleft')) dx -= panSpeed;
-    if (this.keys.has('d') || this.keys.has('arrowright')) dx += panSpeed;
-    if (dx !== 0 || dy !== 0) {
-      this.x += dx;
-      this.y += dy;
-      this.updateTransform();
-    }
-  }
-
-  private setupKeyboard(): void {
-    this.keyHandlerDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-      const key = e.key.toLowerCase();
-      if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(key)) {
-        this.keys.add(key);
-        this.followTarget = null;
+    } else if (this.destination) {
+      const t = reducedMotion ? 1 : 1 - Math.exp(-dt * 4);
+      this.x += (this.destination.x - this.x) * t;
+      this.y += (this.destination.y - this.y) * t;
+      if (Math.abs(this.x - this.destination.x) + Math.abs(this.y - this.destination.y) < 0.01) {
+        this.x = this.destination.x;
+        this.y = this.destination.y;
+        this.destination = null;
       }
+      this.updateTransform();
+    }
+  }
+  screenToWorld(x: number, y: number) {
+    return {
+      x: (x - this.viewportWidth / 2) / this.zoom + this.x,
+      y: (y - this.viewportHeight / 2) / this.zoom + this.y,
     };
-    this.keyHandlerUp = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      this.keys.delete(key);
+  }
+  worldToScreen(x: number, y: number) {
+    return {
+      x: (x - this.x) * this.zoom + this.viewportWidth / 2,
+      y: (y - this.y) * this.zoom + this.viewportHeight / 2,
     };
-    window.addEventListener('keydown', this.keyHandlerDown);
-    window.addEventListener('keyup', this.keyHandlerUp);
   }
-
-  screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
-    const worldX = (screenX - this.viewportWidth / 2) / this.zoom + this.x;
-    const worldY = (screenY - this.viewportHeight / 2) / this.zoom + this.y;
-    return { x: worldX, y: worldY };
-  }
-
-  worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
-    const screenX = (worldX - this.x) * this.zoom + this.viewportWidth / 2;
-    const screenY = (worldY - this.y) * this.zoom + this.viewportHeight / 2;
-    return { x: screenX, y: screenY };
-  }
-
-  isVisible(worldX: number, worldY: number, margin: number = 2): boolean {
-    const screen = this.worldToScreen(worldX, worldY);
+  isVisible(x: number, y: number, margin = 3): boolean {
     return (
-      screen.x > -margin * this.zoom &&
-      screen.x < this.viewportWidth + margin * this.zoom &&
-      screen.y > -margin * this.zoom &&
-      screen.y < this.viewportHeight + margin * this.zoom
+      Math.abs(x - this.x) < this.viewportWidth / (2 * this.zoom) + margin &&
+      Math.abs(y - this.y) < this.viewportHeight / (2 * this.zoom) + margin
     );
   }
-
-  getViewportBounds(): { x: number; y: number; width: number; height: number } {
-    const halfW = this.viewportWidth / (2 * this.zoom);
-    const halfH = this.viewportHeight / (2 * this.zoom);
+  getViewportBounds() {
     return {
-      x: this.x - halfW,
-      y: this.y - halfH,
-      width: halfW * 2,
-      height: halfH * 2,
+      x: this.x - this.viewportWidth / (2 * this.zoom),
+      y: this.y - this.viewportHeight / (2 * this.zoom),
+      width: this.viewportWidth / this.zoom,
+      height: this.viewportHeight / this.zoom,
     };
   }
-
   private updateTransform(): void {
+    this.x = Math.max(0, Math.min(this.mapSize, this.x));
+    this.y = Math.max(0, Math.min(this.mapSize, this.y));
     this.worldLayer.scale.set(this.zoom);
-    this.worldLayer.x = this.viewportWidth / 2 - this.x * this.zoom;
-    this.worldLayer.y = this.viewportHeight / 2 - this.y * this.zoom;
+    this.worldLayer.position.set(
+      this.viewportWidth / 2 - this.x * this.zoom,
+      this.viewportHeight / 2 - this.y * this.zoom
+    );
+    this.revision++;
   }
-
-  private setupInput(): void {
-    this.app.stage.eventMode = 'static';
-    this.app.stage.hitArea = this.app.screen;
-
-    this.app.stage.on('pointerdown', (e: FederatedPointerEvent) => {
-      this.isDragging = true;
-      this.lastDragX = e.globalX;
-      this.lastDragY = e.globalY;
-      this.downX = e.globalX;
-      this.downY = e.globalY;
-    });
-
-    this.app.stage.on('pointermove', (e: FederatedPointerEvent) => {
-      if (!this.isDragging) return;
-      const dx = (e.globalX - this.lastDragX) / this.zoom;
-      const dy = (e.globalY - this.lastDragY) / this.zoom;
-      this.x -= dx;
-      this.y -= dy;
-      this.lastDragX = e.globalX;
-      this.lastDragY = e.globalY;
-      this.followTarget = null;
-      this.updateTransform();
-    });
-
-    const handlePointerUp = (e: FederatedPointerEvent) => {
-      if (this.isDragging) {
-        const moved = Math.abs(e.globalX - this.downX) > 3 || Math.abs(e.globalY - this.downY) > 3;
-        this.isDragging = false;
-        if (!moved && this.onClick) {
-          const world = this.screenToWorld(e.globalX, e.globalY);
-          this.onClick(world.x, world.y);
-        }
-        if (this.onPanEnd) this.onPanEnd();
-      }
-    };
-
-    this.app.stage.on('pointerup', handlePointerUp);
-    this.app.stage.on('pointerupoutside', handlePointerUp);
-
-    this.app.stage.on('wheel', (e: FederatedWheelEvent) => {
-      const wheelEvent = e.nativeEvent as WheelEvent;
-      if (wheelEvent.deltaY < 0) this.zoomIn();
-      else this.zoomOut();
-    });
+  private pointerDown = (e: FederatedPointerEvent) => {
+    if (!this.enabled || e.button !== 0) return;
+    this.manual();
+    this.dragging = true;
+    this.downX = this.lastX = e.globalX;
+    this.downY = this.lastY = e.globalY;
+  };
+  private pointerMove = (e: FederatedPointerEvent) => {
+    if (!this.dragging) return;
+    this.x -= (e.globalX - this.lastX) / this.zoom;
+    this.y -= (e.globalY - this.lastY) / this.zoom;
+    this.lastX = e.globalX;
+    this.lastY = e.globalY;
+    this.updateTransform();
+  };
+  private pointerUp = (e: FederatedPointerEvent) => {
+    if (!this.dragging) return;
+    this.dragging = false;
+    if (Math.hypot(e.globalX - this.downX, e.globalY - this.downY) < 5) {
+      const p = this.screenToWorld(e.globalX, e.globalY);
+      this.onClick?.(p.x, p.y);
+    }
+    this.onPanEnd?.();
+  };
+  private pointerUpOutside = () => {
+    this.dragging = false;
+    this.onPanEnd?.();
+  };
+  private wheel = (e: FederatedWheelEvent) => {
+    if (!this.enabled) return;
+    this.manual();
+    const before = this.screenToWorld(e.globalX, e.globalY);
+    this.setZoom(this.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+    const after = this.screenToWorld(e.globalX, e.globalY);
+    this.x += before.x - after.x;
+    this.y += before.y - after.y;
+    this.updateTransform();
+  };
+  private keyDown = (e: KeyboardEvent) => {
+    if (!this.enabled || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (
+      (e.target as HTMLElement).closest(
+        'input, textarea, select, button, [contenteditable], [role="dialog"]'
+      )
+    )
+      return;
+    const key = e.key.toLowerCase();
+    if (key.startsWith('arrow')) {
+      e.preventDefault();
+      this.keys.add(key);
+    }
+  };
+  private keyUp = (e: KeyboardEvent) => {
+    this.keys.delete(e.key.toLowerCase());
+  };
+  private blur = () => {
+    this.keys.clear();
+    this.dragging = false;
+  };
+  destroy(): void {
+    window.removeEventListener('keydown', this.keyDown);
+    window.removeEventListener('keyup', this.keyUp);
+    window.removeEventListener('blur', this.blur);
+    this.app.stage.off('pointerdown', this.pointerDown);
+    this.app.stage.off('pointermove', this.pointerMove);
+    this.app.stage.off('pointerup', this.pointerUp);
+    this.app.stage.off('pointerupoutside', this.pointerUpOutside);
+    this.app.stage.off('wheel', this.wheel);
+    this.keys.clear();
+    this.onManualInput = this.onClick = this.onPanEnd = null;
   }
 }

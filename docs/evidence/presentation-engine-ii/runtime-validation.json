@@ -1,0 +1,146 @@
+{
+  "browser": "Chrome headless with WebGL",
+  "checks": [
+    {
+      "name": "StrictMode starts one live canvas",
+      "result": "PASS"
+    },
+    {
+      "name": "All 12 workspaces and keyboard shortcuts",
+      "result": "PASS"
+    },
+    {
+      "name": "Modal focus wraps and restores the invoking button",
+      "result": "PASS"
+    },
+    {
+      "name": "Pause and 1×/2×/4× updates preserve persistent scene objects",
+      "result": "PASS"
+    },
+    {
+      "name": "Map hit testing and inspector preserve canvas size",
+      "result": "PASS",
+      "details": "Kaelen the First"
+    },
+    {
+      "name": "Follow tracks the moving entity",
+      "result": "PASS",
+      "details": {
+        "distance": 0.21747255631319068,
+        "active": true
+      }
+    },
+    {
+      "name": "Manual drag releases follow and suspends director",
+      "result": "PASS"
+    },
+    {
+      "name": "Recenter returns to Pyahhold",
+      "result": "PASS"
+    },
+    {
+      "name": "All nine overlay modes",
+      "result": "PASS"
+    },
+    {
+      "name": "Storm, night lighting, discovered Spire and phase contamination fixture",
+      "result": "PASS",
+      "details": {
+        "distance": 0.013117319486114814,
+        "emitters": 1
+      }
+    },
+    {
+      "name": "All weather types render",
+      "result": "PASS"
+    },
+    {
+      "name": "Low quality applies immediately",
+      "result": "PASS",
+      "details": {
+        "tiles": 1976,
+        "entities": 18,
+        "effects": 0,
+        "motes": 12,
+        "weather": 0,
+        "frameSamples": 600,
+        "medianFrameMS": 7.200000000000728,
+        "p95FrameMS": 27.799999999999272,
+        "persistentAnimationAttached": true,
+        "resolution": 1
+      }
+    },
+    {
+      "name": "Reduced motion removes traveling ambient motes",
+      "result": "PASS",
+      "details": {
+        "tiles": 1976,
+        "entities": 18,
+        "effects": 0,
+        "motes": 0,
+        "weather": 0,
+        "frameSamples": 600,
+        "medianFrameMS": 7.200000000000728,
+        "p95FrameMS": 27.799999999999272,
+        "persistentAnimationAttached": true,
+        "resolution": 1
+      }
+    },
+    {
+      "name": "1280×720 through 2560×1440 layout without page overflow",
+      "result": "PASS"
+    },
+    {
+      "name": "Three setup / run lifecycle cycles",
+      "result": "PASS"
+    },
+    {
+      "name": "Discovery event drives an automatic Director shot",
+      "result": "PASS",
+      "details": {
+        "distance": 0
+      }
+    },
+    {
+      "name": "Disabling Director cancels an in-flight shot",
+      "result": "PASS"
+    },
+    {
+      "name": "IndexedDB save survives reload and loads without schema changes",
+      "result": "PASS"
+    },
+    {
+      "name": "Persistent effects root survives state updates and reload",
+      "result": "PASS",
+      "details": {
+        "tiles": 875,
+        "entities": 17,
+        "effects": 0,
+        "motes": 24,
+        "weather": 0,
+        "frameSamples": 253,
+        "medianFrameMS": 6.900000000000546,
+        "p95FrameMS": 7.200000000000728,
+        "persistentAnimationAttached": true,
+        "resolution": 1
+      }
+    },
+    {
+      "name": "No browser page errors",
+      "result": "PASS"
+    }
+  ],
+  "errors": [],
+  "final": {
+    "tiles": 875,
+    "entities": 17,
+    "effects": 0,
+    "motes": 24,
+    "weather": 0,
+    "frameSamples": 253,
+    "medianFrameMS": 6.900000000000546,
+    "p95FrameMS": 7.200000000000728,
+    "persistentAnimationAttached": true,
+    "resolution": 1
+  }
+}

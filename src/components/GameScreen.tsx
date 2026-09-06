@@ -1,200 +1,150 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { ArrowUpRight, Sparkles } from 'lucide-react';
 import { useGameStore } from '../stores/gameStore';
 import { useUIStore } from '../stores/uiStore';
+import { usePresentationStore } from '../stores/presentationStore';
 import { PixiApp } from '../render/PixiApp';
+import { deriveTheme } from '../presentation/theme';
 import HudBar from './HudBar';
-import SovereignMindPanel from './SovereignMindPanel';
-import RightSidebar from './RightSidebar';
-import TechTreePanel from './TechTreePanel';
-import ScenarioPanel from './ScenarioPanel';
+import SovereignLens from './SovereignLens';
+import StrategicWorkspace from './StrategicWorkspace';
+import ContextInspector from './ContextInspector';
 import MapOverlayControls from './MapOverlayControls';
 import MapControls from './MapControls';
 import ActionBar from './ActionBar';
 
 export default function GameScreen() {
-  const state = useGameStore((s) => s.state);
-  const speed = useGameStore((s) => s.speed);
-  const tick = useGameStore((s) => s.tick);
-  const showTechTree = useUIStore((s) => s.showTechTree);
-  const showScenarioPanel = useUIStore((s) => s.showScenarioPanel);
-  const overlayMode = useUIStore((s) => s.overlayMode);
-  const followSelected = useUIStore((s) => s.followSelected);
-  const selection = useUIStore((s) => s.selection);
-  const leftCollapsed = useUIStore((s) => s.leftSidebarCollapsed);
-  const rightCollapsed = useUIStore((s) => s.rightSidebarCollapsed);
-  const leftWidth = useUIStore((s) => s.leftSidebarWidth);
-  const rightWidth = useUIStore((s) => s.rightSidebarWidth);
-  const toggleLeftSidebar = useUIStore((s) => s.toggleLeftSidebar);
-  const toggleRightSidebar = useUIStore((s) => s.toggleRightSidebar);
-  const setLeftSidebarWidth = useUIStore((s) => s.setLeftSidebarWidth);
-  const setRightSidebarWidth = useUIStore((s) => s.setRightSidebarWidth);
-
-  const pixiContainerRef = useRef<HTMLDivElement>(null);
-  const initGuardRef = useRef(false);
-  const pixiAppRef = useRef<PixiApp | null>(null);
-  const [pixiApp, setPixiApp] = useState<PixiApp | null>(null);
-
+  const state = useGameStore((s) => s.state),
+    speed = useGameStore((s) => s.speed),
+    status = useGameStore((s) => s.status);
+  const workspace = useUIStore((s) => s.workspace);
+  const events = usePresentationStore((s) => s.events),
+    directorStatus = usePresentationStore((s) => s.directorStatus);
+  const container = useRef<HTMLDivElement>(null),
+    [pixi, setPixi] = useState<PixiApp | null>(null);
+  const [error, setError] = useState(''),
+    [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (!pixiContainerRef.current || initGuardRef.current) return;
-    initGuardRef.current = true;
-
-    const container = pixiContainerRef.current;
+    if (!container.current) return;
+    let active = true;
     const app = new PixiApp();
-    pixiAppRef.current = app;
-    app.init(container).then(() => {
-      setPixiApp(app);
-      const currentState = useGameStore.getState().state;
-      if (currentState) {
-        app.render(currentState, useUIStore.getState());
-      }
-    }).catch((err) => {
-      console.error('PixiApp init failed:', err);
-    });
-
+    setError('');
+    setPixi(null);
+    useUIStore.getState().reset();
+    usePresentationStore.getState().reset();
+    app
+      .init(container.current)
+      .then(() => {
+        if (!active) return;
+        setPixi(app);
+        if (import.meta.env.DEV) Object.assign(window, { __crownmindPresentation: app });
+        const state = useGameStore.getState().state;
+        if (state) app.render(state, useUIStore.getState());
+      })
+      .catch((err) => {
+        app.destroy();
+        if (active) {
+          setError(String(err));
+          console.error('Presentation initialization failed', err);
+        }
+      });
     return () => {
-      // In StrictMode, this cleanup fires immediately after mount, then re-mounts.
-      // We don't destroy the app here — it's destroyed when the component truly unmounts
-      // (navigating back to setup) via the separate unmount effect below.
+      active = false;
+      app.destroy();
+      if (import.meta.env.DEV) Reflect.deleteProperty(window, '__crownmindPresentation');
     };
-  }, []);
-
-  // Destroy PixiApp on real unmount (component removed from DOM)
+  }, [attempt, state?.config]);
   useEffect(() => {
+    if (speed <= 0 || status !== 'playing') return;
+    const timer = window.setInterval(() => useGameStore.getState().tick(), 1000 / speed);
+    return () => window.clearInterval(timer);
+  }, [speed, status]);
+  useEffect(() => {
+    if (!pixi) return;
+    const render = () => {
+      const state = useGameStore.getState().state;
+      if (state) pixi.render(state, useUIStore.getState());
+    };
+    render();
+    const unsubscribeGame = useGameStore.subscribe(render),
+      unsubscribeUI = useUIStore.subscribe(render);
     return () => {
-      if (pixiAppRef.current) {
-        pixiAppRef.current.destroy();
-        pixiAppRef.current = null;
-      }
+      unsubscribeGame();
+      unsubscribeUI();
     };
-  }, []);
-
-  useEffect(() => {
-    if (speed === 0) return;
-    const interval = setInterval(() => {
-      tick();
-    }, 1000 / speed);
-    return () => clearInterval(interval);
-  }, [speed, tick]);
-
-  useEffect(() => {
-    if (!pixiApp || !state) return;
-    const uiState = useUIStore.getState();
-    pixiApp.render(state, uiState);
-  }, [state, overlayMode, pixiApp]);
-
-  useEffect(() => {
-    if (!pixiApp) return;
-    if (followSelected && selection.entityId != null && selection.x != null && selection.y != null) {
-      pixiApp.camera.follow({ x: selection.x, y: selection.y });
-    } else {
-      pixiApp.camera.follow(null);
-    }
-  }, [pixiApp, followSelected, selection]);
-
-  const resizeRef = useRef<{ side: 'left' | 'right' | null; startX: number; startW: number }>({ side: null, startX: 0, startW: 0 });
-
-  const onResizeStart = useCallback((side: 'left' | 'right') => (e: React.MouseEvent) => {
-    e.preventDefault();
-    resizeRef.current = {
-      side,
-      startX: e.clientX,
-      startW: side === 'left' ? leftWidth : rightWidth,
-    };
-  }, [leftWidth, rightWidth]);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      const r = resizeRef.current;
-      if (!r.side) return;
-      const delta = e.clientX - r.startX;
-      if (r.side === 'left') {
-        setLeftSidebarWidth(r.startW + delta);
-      } else {
-        setRightSidebarWidth(r.startW - delta);
-      }
-    };
-    const onUp = () => { resizeRef.current.side = null; };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [setLeftSidebarWidth, setRightSidebarWidth]);
-
+  }, [pixi]);
   if (!state) return null;
-
+  const theme = deriveTheme(state),
+    latest = events[0];
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#07040d] overflow-hidden font-sans text-[#eee8ff]">
-      <div className="p-2 flex-shrink-0 safe-top safe-left safe-right">
-        <HudBar state={state} />
-      </div>
-
-      <div className="flex-1 flex gap-2 px-2 pb-2 min-h-0 sidebar-desktop">
-        {/* Left sidebar */}
-        {!leftCollapsed && (
-          <>
-            <div className="flex flex-col gap-2 flex-shrink-0 overflow-y-auto custom-scrollbar sidebar-left" style={{ width: leftWidth }}>
-              <SovereignMindPanel mind={state.sovereignMind} botName="Klÿ-Sovereign" />
-              {showTechTree && <TechTreePanel state={state} />}
-              {showScenarioPanel && <ScenarioPanel />}
-            </div>
-            <div
-              className="w-1 cursor-col-resize flex-shrink-0 bg-[rgba(128,90,213,0.1)] hover:bg-[rgba(128,90,213,0.3)] transition-colors"
-              onMouseDown={onResizeStart('left')}
-            />
-          </>
-        )}
-        {leftCollapsed && (
-          <button
-            onClick={toggleLeftSidebar}
-            className="w-6 flex-shrink-0 flex items-center justify-center text-[#9b5cff] hover:text-[#eee8ff] transition-colors"
-            title="Expand left panel"
-          >
-            <span className="text-xs rotate-180" style={{ writingMode: 'vertical-rl' }}>Sovereign</span>
-          </button>
-        )}
-
-        <div className="flex-1 relative min-w-0">
-          <div ref={pixiContainerRef} className="w-full h-full rounded-xl overflow-hidden border border-[rgba(128,90,213,0.18)]" />
-          <MapOverlayControls />
-          <MapControls pixiApp={pixiApp} />
+    <main
+      className="sovereign-table"
+      data-phase={theme.phase}
+      style={{ '--corruption': theme.corruptionIntensity } as CSSProperties}
+    >
+      <HudBar state={state} />
+      <section className="world-stage" aria-label="Living Sovereign Table">
+        <div ref={container} className="world-canvas" />
+        <div className="cartographic-frame" aria-hidden="true">
+          <span className="frame-north">N</span>
+          <span className="frame-title">THE LIVING SOVEREIGN TABLE</span>
+          <span className="frame-coordinate">
+            PYAHHOLD / {state.config.seedString.toUpperCase()}
+          </span>
         </div>
-
-        {/* Right sidebar */}
-        {rightCollapsed && (
+        {!pixi && !error && <div className="renderer-loading">Awakening the living realm…</div>}
+        {error && (
+          <div className="renderer-loading">
+            <strong>The world display could not start.</strong>
+            <p>{error}</p>
+            <button
+              className="instrument-button"
+              onClick={() => {
+                setPixi(null);
+                setAttempt((n) => n + 1);
+              }}
+            >
+              Retry display
+            </button>
+          </div>
+        )}
+        <SovereignLens state={state} />
+        <MapOverlayControls />
+        {state.raidWarning?.active && (
+          <div className="raid-signal" role="status">
+            ⚠ RAID WARNING · {state.raidWarning.monsterCount} hostiles ·{' '}
+            {state.raidWarning.sourceLairName}
+          </div>
+        )}
+        {latest && (
           <button
-            onClick={toggleRightSidebar}
-            className="w-6 flex-shrink-0 flex items-center justify-center text-[#9b5cff] hover:text-[#eee8ff] transition-colors"
-            title="Expand right panel"
+            className={`world-signal ${latest.priority >= 80 ? 'critical' : ''}`}
+            onClick={() => {
+              if (latest.target) useUIStore.getState().setCameraTarget({ ...latest.target });
+              else
+                useUIStore
+                  .getState()
+                  .openWorkspace(latest.kind === 'decision' ? 'sovereign' : 'events');
+            }}
           >
-            <span className="text-xs" style={{ writingMode: 'vertical-rl' }}>Panels</span>
+            <span className="eyebrow">
+              <Sparkles size={12} />
+              Day {latest.day} / {latest.kind}
+            </span>
+            <strong>{latest.title}</strong>
+            <small>{latest.detail}</small>
+            <ArrowUpRight size={15} />
           </button>
         )}
-        {!rightCollapsed && (
-          <>
-            <div
-              className="w-1 cursor-col-resize flex-shrink-0 bg-[rgba(128,90,213,0.1)] hover:bg-[rgba(128,90,213,0.3)] transition-colors"
-              onMouseDown={onResizeStart('right')}
-            />
-            <div className="flex flex-col flex-shrink-0 min-h-0" style={{ width: rightWidth }}>
-              <div className="flex items-center justify-between mb-1">
-                <button
-                  onClick={toggleRightSidebar}
-                  className="text-[10px] font-mono uppercase text-[#9b5cff] hover:text-[#eee8ff] transition-colors"
-                >
-                  Collapse
-                </button>
-              </div>
-              <RightSidebar state={state} />
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="px-2 pb-2 flex-shrink-0 safe-bottom safe-left safe-right">
-        <ActionBar />
-      </div>
-    </div>
+        <div className="director-caption">
+          <span className="status-dot" />
+          {directorStatus}
+        </div>
+        <MapControls pixiApp={pixi} />
+        {workspace === 'inspector' && <ContextInspector state={state} />}
+      </section>
+      <ActionBar />
+      <StrategicWorkspace state={state} />
+    </main>
   );
 }
